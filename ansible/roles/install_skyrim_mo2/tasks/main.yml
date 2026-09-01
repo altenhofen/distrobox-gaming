@@ -1,0 +1,153 @@
+---
+- name: Assert Skyrim SE is installed in the configured Steam library
+  ansible.builtin.stat:
+    path: "{{ dg_skyrim_exe }}"
+  register: _skyrim_exe
+
+- name: Fail when Skyrim SE is not installed
+  ansible.builtin.fail:
+    msg: >-
+      SkyrimSE.exe was not found at {{ dg_skyrim_exe }}. Install Steam app
+      {{ dg_skyrim_appid }} (Skyrim Special Edition) in the gaming distrobox,
+      start it once with Proton to create its prefix, then rerun this playbook.
+      Override dg_skyrim_steam_library_root if it is in another Steam library.
+  when: not _skyrim_exe.stat.exists
+
+- name: Read Skyrim SE executable version
+  # Pass the path as $1 instead of embedding a quoted path inside the `sh -lc`
+  # program. The Steam install directory contains spaces, and nested shell
+  # quotes otherwise get consumed before distrobox enters the container.
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sh -lc
+    'strings "$1" | grep -m1 -Eo "1\\.[0-9]+\\.[0-9]+\\.0" | sed "s/\\.0$//"'
+    -- {{ dg_skyrim_exe | quote }}
+  register: _skyrim_runtime
+  changed_when: false
+
+- name: Assert the installed Skyrim runtime has a current SKSE recipe
+  ansible.builtin.assert:
+    that: "(_skyrim_runtime.stdout | trim) == dg_skyrim_runtime_version"
+    fail_msg: >-
+      Skyrim runtime {{ _skyrim_runtime.stdout | trim }} does not match this
+      recipe's verified current runtime {{ dg_skyrim_runtime_version }}. Do not
+      install SKSE yet: update dg_skyrim_runtime_version, dg_skyrim_skse_version
+      and dg_skyrim_skse_runtime_dll together after checking skse.silverlock.org.
+
+- name: Assert the official matching SKSE archive is staged
+  ansible.builtin.stat:
+    path: "{{ dg_skyrim_skse_archive }}"
+  register: _skyrim_skse_archive
+
+- name: Fail with SKSE staging guidance
+  ansible.builtin.fail:
+    msg: >-
+      Missing {{ dg_skyrim_skse_archive }}. Download SKSE64 {{ dg_skyrim_skse_version }}
+      for Steam runtime {{ dg_skyrim_runtime_version }} from the official SKSE
+      page/Nexus and place the untouched .7z archive there, then rerun.
+  when: not _skyrim_skse_archive.stat.exists
+
+- name: Install MO2 and SKSE runtime packages inside the box
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sudo pacman -S --needed --noconfirm
+    {{ dg_skyrim_mo2_packages | join(' ') }}
+  register: _skyrim_mo2_pacman
+  changed_when: "'installing' in _skyrim_mo2_pacman.stdout or 'upgrading' in _skyrim_mo2_pacman.stdout"
+
+- name: Create Mod Organizer 2 directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ dg_skyrim_mo2_cache_dir }}"
+    - "{{ dg_skyrim_mo2_dir }}"
+    - "{{ dg_box_home }}/bin"
+
+- name: Download the pinned official Mod Organizer 2 archive
+  ansible.builtin.get_url:
+    url: "{{ dg_skyrim_mo2_asset_url }}"
+    dest: "{{ dg_skyrim_mo2_cache_dir }}/{{ dg_skyrim_mo2_asset_name }}"
+    mode: "0644"
+
+- name: Extract Mod Organizer 2 at the configured release
+  # p7zip is deliberately installed in the gaming box, so extraction must run
+  # there too (the box home is bind-mounted at the same path).
+  ansible.builtin.shell: |
+    {{ dg_in_box }} env \
+      MO2_DIR={{ dg_skyrim_mo2_dir | quote }} \
+      MO2_EXE={{ dg_skyrim_mo2_exe | quote }} \
+      MO2_ARCHIVE={{ (dg_skyrim_mo2_cache_dir + '/' + dg_skyrim_mo2_asset_name) | quote }} \
+      MO2_VERSION={{ dg_skyrim_mo2_version | quote }} \
+      sh -s <<'EOF'
+    set -eu
+    marker="$MO2_DIR/.dg-installed-version"
+    if [ -f "$MO2_EXE" ] && grep -qx "$MO2_VERSION" "$marker" 2>/dev/null; then
+      exit 0
+    fi
+    rm -rf "$MO2_DIR"
+    mkdir -p "$MO2_DIR"
+    7z x -y -o"$MO2_DIR" "$MO2_ARCHIVE" >/dev/null
+    test -f "$MO2_EXE"
+    printf "%s\\n" "$MO2_VERSION" > "$marker"
+    printf '%s\n' extracted-mo2
+    EOF
+  register: _skyrim_mo2_extract
+  changed_when: "'extracted-mo2' in _skyrim_mo2_extract.stdout"
+
+- name: Inspect the staged SKSE archive for the matching runtime DLL
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sh -lc '7z l "$1"' -- {{ dg_skyrim_skse_archive | quote }}
+  register: _skyrim_skse_listing
+  changed_when: false
+
+- name: Assert the staged SKSE archive matches the selected Steam runtime
+  ansible.builtin.assert:
+    that: "dg_skyrim_skse_runtime_dll in _skyrim_skse_listing.stdout"
+    fail_msg: >-
+      {{ dg_skyrim_skse_archive }} does not contain {{ dg_skyrim_skse_runtime_dll }}.
+      Stage SKSE64 {{ dg_skyrim_skse_version }} for Steam runtime
+      {{ dg_skyrim_runtime_version }}, not an archived/downgraded build.
+
+- name: Install SKSE beside SkyrimSE.exe, preserving Steam-owned game files
+  ansible.builtin.shell: |
+    {{ dg_in_box }} env \
+      SKYRIM_DIR={{ dg_skyrim_game_dir | quote }} \
+      SKSE_ARCHIVE={{ dg_skyrim_skse_archive | quote }} \
+      SKSE_DLL={{ dg_skyrim_skse_runtime_dll | quote }} \
+      SKSE_MARKER={{ (dg_skyrim_skse_version + ' / ' + dg_skyrim_runtime_version) | quote }} \
+      sh -s <<'EOF'
+    set -eu
+    marker="$SKYRIM_DIR/.dg-skse-installed"
+    if grep -qx "$SKSE_MARKER" "$marker" 2>/dev/null &&
+       [ -f "$SKYRIM_DIR/skse64_loader.exe" ] &&
+       [ -f "$SKYRIM_DIR/$SKSE_DLL" ]; then
+      exit 0
+    fi
+    tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+    7z x -y -o"$tmp" "$SKSE_ARCHIVE" >/dev/null
+    src="$(find "$tmp" -type f -name "$SKSE_DLL" -printf "%h\\n" | head -n1)"
+    test -n "$src"
+    cp -a "$src/skse64_loader.exe" "$src/$SKSE_DLL" "$SKYRIM_DIR/"
+    # Newer SKSE builds no longer ship skse64_steam_loader.dll. Copy it only
+    # from an archive that provides it, so the current Steam build is accepted.
+    [ ! -f "$src/skse64_steam_loader.dll" ] || cp -a "$src/skse64_steam_loader.dll" "$SKYRIM_DIR/"
+    [ ! -d "$src/Data" ] || cp -a "$src/Data/." "$SKYRIM_DIR/Data/"
+    printf "%s\\n" "$SKSE_MARKER" > "$marker"
+    printf '%s\n' installed-skse
+    EOF
+  register: _skyrim_skse_install
+  changed_when: "'installed-skse' in _skyrim_skse_install.stdout"
+
+- name: Deploy the MO2 Proton launcher
+  ansible.builtin.template:
+    src: skyrim-mo2.sh.j2
+    dest: "{{ dg_skyrim_mo2_bin }}"
+    mode: "0755"
+
+- name: Report Skyrim MO2 setup
+  ansible.builtin.debug:
+    msg: |
+      Skyrim SE runtime {{ dg_skyrim_runtime_version }}, SKSE64 {{ dg_skyrim_skse_version }},
+      and Mod Organizer 2 {{ dg_skyrim_mo2_version }} are prepared.
+      Launch {{ dg_skyrim_mo2_bin }}. In MO2, select/add {{ dg_skyrim_game_dir }}/skse64_loader.exe
+      as the SKSE executable and always start Skyrim through that entry.

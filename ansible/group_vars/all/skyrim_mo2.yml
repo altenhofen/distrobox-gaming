@@ -1,0 +1,43 @@
+---
+# Skyrim Special Edition / Anniversary Edition on Steam (appid 489830), managed
+# by install_skyrim_mo2 / install-skyrim-mo2.yml. See docs/skyrim-mo2.md.
+#
+# "AE" here denotes the current post-1.6 Steam runtime, not ownership of the
+# separately sold Anniversary Upgrade. This recipe deliberately targets the
+# current Steam runtime and refuses older/newer game binaries until its paired
+# SKSE variables are reviewed.
+
+dg_skyrim_appid: "489830"
+dg_skyrim_steam_library_root: "{{ dg_box_home }}/.local/share/Steam"
+dg_skyrim_game_dir: "{{ dg_skyrim_steam_library_root }}/steamapps/common/Skyrim Special Edition"
+dg_skyrim_exe: "{{ dg_skyrim_game_dir }}/SkyrimSE.exe"
+
+# Current Steam runtime / SKSE64 pair, verified 2026-09-01 against SKSE's
+# download page. Update these three values together after a Bethesda patch.
+dg_skyrim_runtime_version: "1.7.104"
+dg_skyrim_skse_version: "2.3.1"
+dg_skyrim_skse_archive_name: "skse64_2_03_01.7z"
+dg_skyrim_skse_runtime_dll: "skse64_1_7_104.dll"
+# Download the matching archive from the official SKSE Nexus page and place it
+# here. Nexus authentication/licensing means this recipe never fetches it from
+# an unofficial mirror.
+dg_skyrim_skse_staging_dir: "{{ dg_roms_final_root }}/PC/SKSE"
+dg_skyrim_skse_archive: "{{ dg_skyrim_skse_staging_dir }}/{{ dg_skyrim_skse_archive_name }}"
+
+# Official Mod Organizer 2 release. MO2 2.5.2 has an open upstream immediate
+# startup crash (ModOrganizer.exe+0x1b675), reproduced even on Windows; 2.5.0
+# works in the same environment. Keep MO2 outside the Steam game tree so Steam
+# verification never removes it and MO2's mods/profiles stay separate.
+dg_skyrim_mo2_version: "2.5.0"
+dg_skyrim_mo2_asset_name: "Mod.Organizer-2.5.0.7z"
+dg_skyrim_mo2_asset_url: "https://github.com/ModOrganizer2/modorganizer/releases/download/v{{ dg_skyrim_mo2_version }}/{{ dg_skyrim_mo2_asset_name }}"
+dg_skyrim_mo2_root: "{{ dg_box_home }}/tools/mod-organizer-2/skyrim-se"
+dg_skyrim_mo2_cache_dir: "{{ dg_skyrim_mo2_root }}/cache"
+dg_skyrim_mo2_dir: "{{ dg_skyrim_mo2_root }}/app"
+dg_skyrim_mo2_exe: "{{ dg_skyrim_mo2_dir }}/ModOrganizer.exe"
+dg_skyrim_mo2_bin: "{{ dg_box_home }}/bin/skyrim-mo2"
+
+dg_skyrim_mo2_packages:
+  - p7zip
+  - protontricks
+  - zenity

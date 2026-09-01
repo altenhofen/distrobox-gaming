@@ -23,6 +23,11 @@
 # copy in the gaming box's Steam first. Override for a GOG/manual install:
 # dg_openmw_game_dir: /path/to/Morrowind
 #
+# Skyrim SE / AE + MO2 + SKSE (opt-in install-skyrim-mo2.yml). Skyrim Steam
+# app 489830 must be installed and run once with Proton. Put the official SKSE
+# archive in ROMS_FINAL/PC/SKSE/ or override this directory:
+# dg_skyrim_skse_staging_dir: "{{ dg_roms_final_root }}/PC/SKSE"
+#
 # Roots derived from dg_emudeck_root (override individually only if
 # your layout diverges from EmuDeck's default):
 # dg_rom_root:        "{{ dg_emudeck_root }}/roms"

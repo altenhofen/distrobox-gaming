@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+# protontricks-launch supplies Steam's app-specific Proton prefix. Starting
+# ModOrganizer.exe with ordinary Wine would bypass that prefix and its DLL setup.
+# Steam Runtime's bwrap sandbox must be started from a path it can mount. In
+# particular, a caller's Downloads/ directory can appear as /run/host/... and
+# be rejected as reserved, so never inherit the caller's working directory.
+cd "{{ dg_box_home }}"
+exec protontricks-launch --appid {{ dg_skyrim_appid }} {{ dg_skyrim_mo2_exe | quote }}

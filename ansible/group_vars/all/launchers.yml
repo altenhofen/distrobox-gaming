@@ -113,6 +113,16 @@ dg_emulator_launchers:
     comment: "Open-source Morrowind engine"
     wm_class: openmw-launcher
 
+  - name: gaming-skyrim-mo2
+    display_name: "Skyrim SE — Mod Organizer 2 (on {{ dg_box_name }})"
+    exec: "{{ dg_box_home }}/bin/skyrim-mo2"
+    # The helper launches through Steam's Proton prefix. As with Steam itself,
+    # leave GPU selection to Proton rather than forcing global loader vars.
+    gpu_env: ""
+    icon: steam
+    comment: "Skyrim Special Edition mod manager and SKSE launcher"
+    wm_class: ModOrganizer
+
   - name: gaming-retroarch
     display_name: "RetroArch (on {{ dg_box_name }})"
     exec: retroarch
