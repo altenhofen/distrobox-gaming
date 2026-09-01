@@ -86,6 +86,21 @@
       overwritten when the GUI writes its config back on shutdown.
   when: _shadps4_processes.rc == 0
 
+- name: Seed missing shadPS4 config.toml files
+  # A newly installed shadPS4 does not create these until its first GUI
+  # launch. Seed empty files so the managed GUI setting can be applied during
+  # the initial provisioning run as well.
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ item }}"
+    force: false
+    mode: "0644"
+  loop:
+    - "{{ dg_box_home }}/.config/shadPS4/config.toml"
+    - "{{ dg_box_home }}/.local/share/shadPS4/config.toml"
+  loop_control:
+    label: "{{ item }}"
+
 - name: Configure shadPS4 addonInstallDir in both config.toml files
   # shadPS4 keeps two parallel config files — one under .config/ (XDG
   # standard, written by Qt) and one under .local/share/ (used by the

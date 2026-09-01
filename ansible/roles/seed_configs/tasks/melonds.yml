@@ -13,14 +13,31 @@
     - "{{ dg_melonds_config_dir }}"
     - "{{ dg_melonds_config_dir }}/bios"
 
-- name: Copy DS BIOS/firmware from the BIOS root (seed only if missing)
+- name: Check for user-supplied DS BIOS/firmware
+  ansible.builtin.stat:
+    path: "{{ dg_bios_root }}/{{ item }}"
+  loop: "{{ dg_melonds_bios_files }}"
+  register: _melonds_bios_sources
+
+- name: Copy available DS BIOS/firmware from the BIOS root (seed only if missing)
   ansible.builtin.copy:
-    src: "{{ dg_bios_root }}/{{ item }}"
-    dest: "{{ dg_melonds_config_dir }}/bios/{{ item }}"
+    src: "{{ item.stat.path }}"
+    dest: "{{ dg_melonds_config_dir }}/bios/{{ item.item }}"
     remote_src: true
     force: false
     mode: "0644"
-  loop: "{{ dg_melonds_bios_files }}"
+  loop: "{{ _melonds_bios_sources.results }}"
+  when: item.stat.exists
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Warn about missing optional DS BIOS/firmware
+  ansible.builtin.debug:
+    msg: "WARNING: melonDS BIOS/firmware file missing: {{ dg_bios_root }}/{{ item.item }}"
+  loop: "{{ _melonds_bios_sources.results }}"
+  when: not item.stat.exists
+  loop_control:
+    label: "{{ item.item }}"
 
 - name: Seed melonDS config (seed only if missing)
   ansible.builtin.template:

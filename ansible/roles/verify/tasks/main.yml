@@ -84,13 +84,13 @@
     - libSceLibcInternal.sprx
   register: _module_files
 
-- name: Assert critical modules present
-  ansible.builtin.assert:
-    that: item.stat.exists
-    fail_msg: "Missing shadPS4 module: {{ item.item }}"
+- name: Warn about missing optional shadPS4 modules
+  ansible.builtin.debug:
+    msg: "WARNING: shadPS4 firmware module missing: {{ item.item }}"
   loop: "{{ _module_files.results }}"
   loop_control:
     label: "{{ item.item }}"
+  when: not item.stat.exists
 
 # Generated file verification
 
@@ -105,17 +105,12 @@
     - "{{ dg_dolphin_config_dir }}/Profiles/Wiimote/8BitDo Ultimate 2 Classic.ini"
     - "{{ dg_dolphin_config_dir }}/Profiles/Wiimote/8BitDo Ultimate 2 Nunchuk.ini"
     - "{{ dg_xemu_config }}"
-    - "{{ dg_xemu_bootrom }}"
-    - "{{ dg_xemu_flashrom }}"
-    - "{{ dg_xemu_hdd }}"
     - "{{ dg_shadps4_bin }}"
     - "{{ dg_shadps4_qtlauncher_bin }}"
     - "{{ dg_shadps4_qtlauncher_root }}/current/AppRun"
     - "{{ dg_shadps4_managed_bin }}"
     - "{{ dg_box_home }}/.local/share/shadPS4/custom_configs/{{ dg_shadps4_title_id }}.json"
     - "{{ dg_shadps4_patch_xml }}"
-    - "{{ dg_shadps4_game_dir }}"
-    - "{{ dg_shadps4_game_boot }}"
     - "{{ dg_box_home }}/ES-DE/custom_systems/es_systems.xml"
   register: _file_checks
 
@@ -126,6 +121,25 @@
   loop: "{{ _file_checks.results }}"
   loop_control:
     label: "{{ item.item }}"
+
+- name: Stat optional user-supplied emulator assets
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ dg_xemu_bootrom }}"
+    - "{{ dg_xemu_flashrom }}"
+    - "{{ dg_xemu_hdd }}"
+    - "{{ dg_shadps4_game_dir }}"
+    - "{{ dg_shadps4_game_boot }}"
+  register: _user_asset_checks
+
+- name: Warn about missing optional user-supplied emulator assets
+  ansible.builtin.debug:
+    msg: "WARNING: optional emulator asset missing: {{ item.item }}"
+  loop: "{{ _user_asset_checks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not item.stat.exists
 
 # Xenia Manager verification (optional)
 

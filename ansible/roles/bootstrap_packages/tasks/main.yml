@@ -205,7 +205,11 @@
     file: repair-lib32-nvidia.yml
     apply:
       tags: [gpu]
-  when: dg_nvidia_lib32_workaround_enabled | bool
+  when:
+    - dg_nvidia_lib32_workaround_enabled | bool
+    - _nvidia_ver is defined
+    - _nvidia_ver.rc | default(1) == 0
+    - _nvidia_ver.stdout | default('') | trim | length > 0
   tags: [gpu]
 
 - name: Repair Wayland socket links in the box
