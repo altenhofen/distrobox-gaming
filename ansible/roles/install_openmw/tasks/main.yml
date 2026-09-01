@@ -1,0 +1,37 @@
+---
+- name: Assert owned Morrowind data files are available
+  ansible.builtin.stat:
+    path: "{{ dg_openmw_data_dir }}/Morrowind.esm"
+  register: _openmw_morrowind_esm
+
+- name: Fail with setup guidance when Morrowind data is missing
+  ansible.builtin.fail:
+    msg: >-
+      Morrowind.esm was not found at {{ dg_openmw_data_dir }}. Install the owned
+      Morrowind GOTY edition through Steam inside the gaming distrobox, then
+      rerun this playbook; or override dg_openmw_game_dir for an existing
+      GOG/manual installation. OpenMW supplies the engine, not game data.
+  when: not _openmw_morrowind_esm.stat.exists
+
+- name: Install OpenMW from Arch inside the box
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sudo pacman -S --needed --noconfirm
+    {{ dg_openmw_pacman_package }}
+  register: _openmw_pacman
+  changed_when: "'installing' in _openmw_pacman.stdout or 'upgrading' in _openmw_pacman.stdout"
+
+- name: Verify the OpenMW launcher is on PATH inside the box
+  # `command` is a shell builtin, so run it through sh rather than passing it
+  # directly to distrobox-enter (which otherwise treats it as an executable).
+  ansible.builtin.shell: "{{ dg_in_box }} sh -lc 'command -v openmw-launcher'"
+  register: _openmw_launcher
+  changed_when: false
+
+- name: Report OpenMW install status
+  ansible.builtin.debug:
+    msg: |
+      OpenMW installed inside the gaming distrobox.
+      Launcher: {{ _openmw_launcher.stdout | trim }}
+      Game data: {{ dg_openmw_data_dir }}
+      First launch: OpenMW will ask for the Morrowind data directory; select
+      {{ dg_openmw_data_dir }} and enable Tribunal/Bloodmoon when owned.

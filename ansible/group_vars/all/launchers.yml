@@ -106,6 +106,13 @@ dg_emulator_launchers:
     comment: "Nintendo 3DS emulator (Citra fork)"
     wm_class: org.azahar_emu.azahar
 
+  - name: gaming-openmw
+    display_name: "OpenMW (on {{ dg_box_name }})"
+    exec: openmw-launcher
+    icon: openmw
+    comment: "Open-source Morrowind engine"
+    wm_class: openmw-launcher
+
   - name: gaming-retroarch
     display_name: "RetroArch (on {{ dg_box_name }})"
     exec: retroarch

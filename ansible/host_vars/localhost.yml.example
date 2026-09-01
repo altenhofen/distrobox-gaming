@@ -19,6 +19,10 @@
 # or a NOPASSWD entry) the first time it runs.
 # dg_steam_root: "{{ dg_data_root }}/steam"
 #
+# OpenMW / Morrowind (opt-in install-openmw.yml). Install an owned Morrowind
+# copy in the gaming box's Steam first. Override for a GOG/manual install:
+# dg_openmw_game_dir: /path/to/Morrowind
+#
 # Roots derived from dg_emudeck_root (override individually only if
 # your layout diverges from EmuDeck's default):
 # dg_rom_root:        "{{ dg_emudeck_root }}/roms"

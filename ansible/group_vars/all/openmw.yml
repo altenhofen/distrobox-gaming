@@ -1,0 +1,9 @@
+---
+# OpenMW — native open-source engine for The Elder Scrolls III: Morrowind.
+# The engine is packaged by Arch; install an owned Morrowind copy in Steam (or
+# override dg_openmw_game_dir for a GOG/manual installation) before running the
+# opt-in install-openmw.yml playbook. See docs/openmw.md.
+
+dg_openmw_pacman_package: openmw
+dg_openmw_game_dir: "{{ dg_box_home }}/.local/share/Steam/steamapps/common/Morrowind"
+dg_openmw_data_dir: "{{ dg_openmw_game_dir }}/Data Files"
